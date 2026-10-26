@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5eff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Karty">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Portfel Kart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+html{-webkit-text-size-adjust:100%}body{margin:0}[hidden]{display:none!important}
+/* Layout: one narrow column like a phone wallet; cards stack as plastic tiles, tap opens a full-screen scan view */
+:root{
+  --bg:#eef0f3; --surface:#ffffff; --ink:#17202b; --muted:#5d6876; --line:#d8dde4;
+  --accent:#1f5eff; --accent-ink:#ffffff; --danger:#c8362c;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10141a; --surface:#1a2029; --ink:#e9edf2; --muted:#98a3b2; --line:#2b3441;
+  --accent:#6b93ff; --accent-ink:#0b1020; --danger:#ff7a6e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141a; --surface:#1a2029; --ink:#e9edf2; --muted:#98a3b2; --line:#2b3441;
+  --accent:#6b93ff; --accent-ink:#0b1020; --danger:#ff7a6e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 96px}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.count{color:var(--muted);font-size:.9rem;margin:4px 0 0}
+.sync{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+input,select,button{font:inherit;color:inherit}
+.search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:360px){.grid{grid-template-columns:1fr}}
+.card{position:relative;aspect-ratio:1.586;max-width:100%;border:0;border-radius:14px;padding:14px;text-align:left;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:space-between;color:var(--fg,#fff);background:var(--c,#333);
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 6px 14px -8px rgba(0,0,0,.5);overflow:hidden;transition:transform .15s}
+.card::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18),transparent 45%);pointer-events:none}
+.card:active{transform:scale(.97)}
+.card .nm{font-family:var(--display);font-weight:700;font-size:1.1rem;line-height:1.15;overflow-wrap:anywhere}
+.card .no{font-family:var(--mono);font-size:.72rem;opacity:.85;letter-spacing:.04em}
+.card .top{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}
+.card .top .nm{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:1rem}
+.logo{flex:none;width:58px;height:38px;border-radius:9px;background:#fff;display:grid;place-items:center;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);font-family:var(--display);font-weight:800;color:#17202b;font-size:1rem}
+.logo img{width:50px;height:30px;object-fit:contain}
+.logo.sq{width:38px}.logo.sq img{width:30px}
+.scan .logo{width:150px;height:84px;border-radius:16px;font-size:1.8rem}
+.scan .logo img{width:132px;height:68px}
+.scan .logo.sq{width:84px}.scan .logo.sq img{width:68px}
+.card .tag{position:absolute;top:10px;right:10px;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:99px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.empty h2{font-family:var(--display);font-size:1.2rem;margin:0}
+.empty p{margin:0;color:var(--muted)}
+.empty .grid{opacity:.95}
+.fab{position:fixed;right:calc(max(16px,env(safe-area-inset-right,0px)) + 4px);bottom:calc(env(safe-area-inset-bottom,0px) + 20px);
+  border:0;border-radius:99px;padding:14px 22px;background:var(--accent);color:var(--accent-ink);font-weight:600;
+  box-shadow:0 8px 20px -8px rgba(0,0,0,.45);cursor:pointer}
+.sheet{position:fixed;inset:0;background:rgba(10,14,20,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.panel{background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;max-height:92vh;overflow:auto;
+  padding-block:20px calc(env(safe-area-inset-bottom,0px) + 20px);padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:14px}
+.panel h2{font-family:var(--display);margin:0;font-size:1.4rem}
+label{display:flex;flex-direction:column;gap:6px;font-size:.85rem;font-weight:600}
+label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
+.field{padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.mono{font-family:var(--mono)}
+.logorow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logorow .logo{width:84px;height:52px;border-radius:12px;border:1px solid var(--line)}
+.logorow .logo img{width:74px;height:42px}
+.btn.small{flex:none;padding:9px 14px;font-size:.9rem}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:var(--c)}
+.sw[aria-pressed="true"]{border-color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{flex:1;padding:13px 16px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.danger.solid{background:var(--danger);color:#fff}
+.err{color:var(--danger);font-size:.85rem;margin:0}
+/* scan view: always white so scanners read it in either theme */
+.scan{position:fixed;inset:0;z-index:30;background:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  padding-block:calc(env(safe-area-inset-top,0px) + 20px) calc(env(safe-area-inset-bottom,0px) + 20px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));color:var(--fg)}
+.scan h2{font-family:var(--display);font-weight:800;font-size:1.8rem;margin:0;text-align:center;text-wrap:balance}
+.code{background:#fff;color:#000;border-radius:16px;padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.code svg{width:100%;height:auto;max-height:180px}
+.code #qr img,.code #qr canvas{width:220px!important;height:220px!important}
+.code .num{font-family:var(--mono);font-size:1.15rem;letter-spacing:.08em;color:#000;text-align:center;overflow-wrap:anywhere}
+.scan .note{max-width:440px;text-align:center;opacity:.9;margin:0}
+.scan .row{width:100%;max-width:440px}
+.scan .btn{border-color:currentColor;color:inherit}
+.backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-top:8px}
+.backup summary{cursor:pointer;font-weight:600}
+.backup p{color:var(--muted);font-size:.9rem;margin:10px 0}
+.backup .msg{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Portfel Kart</h1>
+      <p class="count" id="count">Wczytuję karty…</p>
+    </div>
+    <span class="sync" id="sync"></span>
+  </header>
+  <input class="search" id="q" type="search" placeholder="Szukaj sklepu…" aria-label="Szukaj karty" hidden>
+  <div id="list"></div>
+  <details class="backup">
+    <summary>Kopia zapasowa</summary>
+    <p>Karty są zapisane tylko w tym telefonie. Zrób kopię przed zmianą telefonu albo czyszczeniem przeglądarki.</p>
+    <div class="row">
+      <button class="btn" type="button" id="exp">Zapisz kopię do pliku</button>
+      <label class="btn" for="imp" style="flex-direction:row;justify-content:center;font-size:1rem">Wczytaj kopię<input id="imp" type="file" accept=".json,application/json" hidden></label>
+    </div>
+    <p class="msg" id="bMsg" hidden></p>
+    <p style="font-size:.75rem">Wersja 10</p>
+  </details>
+</div>
+
+<button class="fab" id="addBtn" type="button">+ Dodaj kartę</button>
+
+<div class="sheet" id="formSheet" hidden>
+  <form class="panel" id="form" novalidate>
+    <h2 id="formTitle">Nowa karta</h2>
+    <label for="fName">Sklep / program
+      <input class="field" id="fName" required maxlength="40" placeholder="np. Biedronka Moja Biedronka">
+    </label>
+    <label for="fSite">Strona sklepu <span class="hint">Do pobrania logo. Popularne sklepy uzupełnią się same.</span>
+      <input class="field" id="fSite" inputmode="url" autocomplete="off" autocapitalize="off" placeholder="np. rossmann.pl">
+    </label>
+    <div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px">Logo</div>
+      <div class="logorow"><div class="logo" id="fLogoPrev"></div>
+        <label class="btn small" for="fLogo" style="flex-direction:row">Własne logo<input id="fLogo" type="file" accept="image/*" hidden></label>
+        <button class="btn small" type="button" id="fLogoDel" hidden>Użyj automatycznego</button></div>
+      <p class="hint" style="font-size:.8rem;color:var(--muted);margin:6px 0 0">Gdy automatyczne logo jest rozmyte, wybierz obrazek z telefonu, np. zrzut ekranu z aplikacji sklepu.</p></div>
+    <label for="fNum">Numer karty <span class="hint">Przepisz cyfry spod kodu kreskowego</span>
+      <input class="field mono" id="fNum" required inputmode="numeric" autocomplete="off" placeholder="2900123456789">
+    </label>
+    <label for="fType">Typ kodu <span class="hint">Najczęściej EAN-13 (13 cyfr). Gdy kasa nie czyta, spróbuj Code 128.</span>
+      <select class="field" id="fType">
+        <option value="auto">Wykryj automatycznie</option>
+        <option value="EAN13">EAN-13</option>
+        <option value="EAN8">EAN-8</option>
+        <option value="CODE128">Code 128</option>
+        <option value="CODE39">Code 39</option>
+        <option value="QR">Kod QR</option>
+      </select>
+    </label>
+    <label for="fNote">Notatka <span class="hint">Opcjonalnie: PIN, e-mail konta, punkty</span>
+      <input class="field" id="fNote" maxlength="80">
+    </label>
+    <div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px">Kolor karty</div>
+      <div class="swatches" id="swatches"></div></div>
+    <p class="err" id="fErr" hidden></p>
+    <div class="row">
+      <button class="btn" type="button" id="cancel">Anuluj</button>
+      <button class="btn primary" type="submit" id="save">Zapisz</button>
+    </div>
+  </form>
+</div>
+
+<div class="scan" id="scan" hidden>
+  <div class="logo" id="sLogo"></div>
+  <h2 id="sName"></h2>
+  <div class="code">
+    <svg id="bar"></svg>
+    <div id="qr" hidden></div>
+    <div class="num" id="sNum"></div>
+  </div>
+  <p class="note" id="sNote" hidden></p>
+  <div class="row" id="scanActions">
+    <button class="btn" type="button" id="close">Zamknij</button>
+    <button class="btn" type="button" id="edit">Edytuj</button>
+    <button class="btn" type="button" id="del">Usuń</button>
+  </div>
+  <div class="row" id="confirmDel" hidden>
+    <button class="btn" type="button" id="noDel">Zostaw</button>
+    <button class="btn danger solid" type="button" id="yesDel">Usuń na zawsze</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const COLORS=[["#d81e2c","#fff"],["#f2c200","#1a1a1a"],["#1d8a3c","#fff"],["#0a4fb3","#fff"],["#6b2fb0","#fff"],["#e8670c","#fff"],["#111827","#fff"],["#0f8f8a","#fff"],["#c2185b","#fff"],["#8a6d3b","#fff"]];
+const EXAMPLES=[
+  {id:"ex1",name:"Przykład: Rossmann",site:"rossmann.pl",num:"5901234123457",type:"EAN13",color:0,ex:true},
+  {id:"ex2",name:"Przykład: Orlen",site:"orlen.pl",num:"LOY-88231",type:"CODE128",color:3,ex:true}];
+const LS="portfel-kart-v1";
+const SHOPS=[["biedronka","biedronka.pl"],["lidl","lidl.pl"],["żabka","zabka.pl"],["zabka","zabka.pl"],["rossmann","rossmann.pl"],
+["hebe","hebe.pl"],["kaufland","kaufland.pl"],["carrefour","carrefour.pl"],["auchan","auchan.pl"],["stokrotka","stokrotka.pl"],
+["netto","netto.pl"],["dino","marketdino.pl"],["intermarch","intermarche.pl"],["polomarket","polomarket.pl"],["lewiatan","lewiatan.pl"],
+["delikatesy centrum","delikatesy.pl"],["makro","makro.pl"],["selgros","selgros.pl"],["orlen","orlen.pl"],["circle k","circlek.pl"],
+["shell","shell.pl"],["bp","bp.com"],["moya","moyastacja.pl"],["empik","empik.com"],["decathlon","decathlon.pl"],["ikea","ikea.com"],
+["leroy","leroymerlin.pl"],["castorama","castorama.pl"],["obi","obi.pl"],["mrówka","mrowka.pl"],["jysk","jysk.pl"],
+["media markt","mediamarkt.pl"],["mediamarkt","mediamarkt.pl"],["euro","euro.com.pl"],["x-kom","x-kom.pl"],["super-pharm","superpharm.pl"],
+["superpharm","superpharm.pl"],["douglas","douglas.pl"],["sephora","sephora.pl"],["notino","notino.pl"],["pepco","pepco.pl"],["action","action.com"],
+["smyk","smyk.com"],["h&m","hm.com"],["reserved","reserved.com"],["sinsay","sinsay.com"],["ccc","ccc.eu"],["deichmann","deichmann.com"],
+["4f","4f.com.pl"],["gemini","gemini.pl"],["doz","doz.pl"],["ziko","zikoapteka.pl"],["dr.max","drmax.pl"],["dr max","drmax.pl"],
+["mcdonald","mcdonalds.pl"],["kfc","kfc.pl"],["starbucks","starbucks.pl"],["costa","costacoffee.pl"],["burger king","burgerking.pl"],
+["pizza hut","pizzahut.pl"],["multikino","multikino.pl"],["cinema city","cinema-city.pl"],["helios","helios.pl"],["payback","payback.pl"],
+["inpost","inpost.pl"],["allegro","allegro.pl"],["eobuwie","eobuwie.pl"],["zalando","zalando.pl"],["tchibo","tchibo.pl"],["kik","kik.de"],
+["half price","halfprice.eu"],["tk maxx","tkmaxx.com"],["primark","primark.com"],["apart","apart.pl"],["yes","yes.pl"],["w.kruk","wkruk.pl"]];
+function guessSite(name){const n=name.toLowerCase();let best=null;
+  for(const [k,d] of SHOPS){const re=new RegExp("(^|[^a-ząćęłńóśźż0-9])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[^a-ząćęłńóśźż0-9])");
+    if(re.test(n)&&(!best||k.length>best[0].length))best=[k,d]}
+  return best?best[1]:""}
+function cleanSite(v){return (v||"").trim().toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split(/[\/?#\s]/)[0]}
+function logoEl(c,el){el=el||document.createElement("div");el.className="logo sq";el.textContent="";
+  const ini=(c.name.replace(/^przykład:\s*/i,"").match(/[\p{L}\p{N}]/u)||["?"])[0].toUpperCase();
+  const site=cleanSite(c.site)||guessSite(c.name.replace(/^przykład:\s*/i,""));
+    el.textContent=ini;
+  if(c.logo){const img=new Image();img.alt="";img.src=c.logo;el.textContent="";el.append(img);return el}
+  const want=site;el.dataset.site=want||"";
+  if(!site)return el;
+  findLogo(site,c.name).then(r=>{if(!r||el.dataset.site!==want)return;const img=new Image();img.alt="";img.referrerPolicy="no-referrer";img.src=r.url;el.textContent="";el.classList.toggle("sq",!r.wide);el.append(img)});
+  return el}
+const logoCache={};
+function loadImg(url){return new Promise(res=>{const i=new Image();i.referrerPolicy="no-referrer";
+  const t=setTimeout(()=>res(null),6000);
+  i.onload=()=>{clearTimeout(t);res(i.naturalWidth?{url,w:i.naturalWidth,h:i.naturalHeight}:null)};i.onerror=()=>{clearTimeout(t);res(null)};i.src=url})}
+function rootOf(site){const p=site.split(".");return p.length>2&&/^(com|co|org|net)$/.test(p[p.length-2])?p.slice(-3).join("."):p.slice(-2).join(".")}
+async function wikiLogo(site,name){
+  const root=rootOf(site),word=root.split(".")[0];
+  const terms=[...new Set([word,name.replace(/^przykład:\s*/i,"").trim()].filter(Boolean))];
+  const ids=new Set();
+  for(const t of terms)for(const lang of ["pl","en"]){
+    try{const r=await fetch("https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&limit=10&type=item&language="+lang+"&uselang="+lang+"&search="+encodeURIComponent(t));
+      const j=await r.json();(j.search||[]).forEach(x=>ids.add(x.id))}catch(e){}}
+  if(!ids.size)return null;
+  try{const r=await fetch("https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=claims&ids="+[...ids].slice(0,50).join("|"));
+    const j=await r.json();
+    for(const id of ids){const c=j.entities?.[id]?.claims;if(!c||!c.P154)continue;
+      const sites=(c.P856||[]).map(x=>String(x.mainsnak?.datavalue?.value||"").toLowerCase());
+      if(!sites.some(u=>{const h=cleanSite(u);return h===root||h.endsWith("."+root)||rootOf(h).split(".")[0]===word}))continue;
+      const logos=c.P154.filter(x=>x.rank!=="deprecated"&&x.mainsnak?.datavalue?.value&&!x.qualifiers?.P582);
+      const pool=(logos.length?logos:c.P154);
+      const when=x=>String(x.qualifiers?.P580?.[0]?.datavalue?.value?.time||"");
+      const pick=pool.find(x=>x.rank==="preferred")||pool.slice().sort((a,b)=>when(b).localeCompare(when(a)))[0];
+      const file=(when(pick)||pool.length===1||pick.rank==="preferred")?pick.mainsnak?.datavalue?.value:pool[pool.length-1].mainsnak?.datavalue?.value;
+      if(file)return "https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file.replace(/ /g,"_"))+"?width=320"}
+  }catch(e){}
+  return null}
+function findLogo(site,name){
+  if(logoCache[site])return logoCache[site];
+  let saved=null;try{saved=JSON.parse(localStorage.getItem("logo4:"+site)||"null")}catch(e){}
+  if(saved&&saved.url)return logoCache[site]=Promise.resolve(saved);
+  const e=encodeURIComponent(site);
+  return logoCache[site]=(async()=>{
+    const save=r=>{try{localStorage.setItem("logo4:"+site,JSON.stringify(r))}catch(x){}return r};
+    const w=await wikiLogo(site,name||"");
+    if(w){const r=await loadImg(w);if(r)return save({url:w,wide:r.w/(r.h||r.w)>1.25})}
+    const srcs=["https://www."+site+"/apple-touch-icon.png","https://"+site+"/apple-touch-icon.png",
+      "https://www."+site+"/apple-touch-icon-precomposed.png","https://icon.horse/icon/"+e,
+      "https://www.google.com/s2/favicons?sz=256&domain_url="+encodeURIComponent("https://www."+site),
+      "https://icons.duckduckgo.com/ip3/"+e+".ico"];
+    let best=null;
+    for(const u of srcs){const r=await loadImg(u);if(!r)continue;if(!best||r.w>best.w)best=r;if(r.w>=120)break}
+    if(best)return save({url:best.url,wide:false});
+    delete logoCache[site];return null})()}
+let siteTouched=false,formLogo=null;
+let cards=[],store=null,editing=null,current=null,pickColor=0,wake=null;
+const $=id=>document.getElementById(id);
+
+function lsGet(){try{return JSON.parse(localStorage.getItem(LS)||"[]")}catch(e){return []}}
+function lsSet(){try{localStorage.setItem(LS,JSON.stringify(cards))}catch(e){}}
+
+function detect(n){const d=/^\d+$/.test(n);
+  if(d&&n.length===13)return"EAN13"; if(d&&n.length===8)return"EAN8"; return"CODE128";}
+
+function tile(c){const [bg,fg]=COLORS[c.color%COLORS.length];
+  const b=document.createElement("button");b.type="button";b.className="card";
+  b.style.setProperty("--c",bg);b.style.setProperty("--fg",fg);
+  const nm=document.createElement("div");nm.className="nm";nm.textContent=c.name;
+  const no=document.createElement("div");no.className="no";no.textContent=c.num.length>16?c.num.slice(0,14)+"…":c.num;
+  const top=document.createElement("div");top.className="top";top.append(logoEl(c),nm);b.append(top,no);
+  if(c.ex){const t=document.createElement("span");t.className="tag";t.textContent="przykład";b.append(t)}
+  b.onclick=()=>openScan(c);return b;}
+
+function render(){
+  const q=$("q").value.trim().toLowerCase(),L=$("list");L.textContent="";
+  $("q").hidden=cards.length<5;
+  $("count").textContent=cards.length?`${cards.length} ${cards.length===1?"karta":(cards.length%10>=2&&cards.length%10<=4&&(cards.length%100<10||cards.length%100>=20))?"karty":"kart"}`:"Jeszcze nic tu nie ma";
+  if(!cards.length){
+    const e=document.createElement("div");e.className="empty";
+    e.innerHTML='<h2>Dodaj pierwszą kartę</h2><p>Kliknij „Dodaj kartę” i przepisz numer spod kodu kreskowego. Przy kasie otwierasz kartę, a kasjer skanuje kod z ekranu.</p><p>Tak to będzie wyglądać (dotknij, żeby zobaczyć):</p>';
+    const g=document.createElement("div");g.className="grid";EXAMPLES.forEach(c=>g.append(tile(c)));e.append(g);L.append(e);return;}
+  const g=document.createElement("div");g.className="grid";
+  cards.filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>(b.used||0)-(a.used||0)||a.name.localeCompare(b.name,"pl"))
+    .forEach(c=>g.append(tile(c)));
+  L.append(g);
+}
+
+async function openScan(c){
+  current=c;const [bg,fg]=COLORS[c.color%COLORS.length];
+  const s=$("scan");s.style.setProperty("--c",bg);s.style.setProperty("--fg",fg);
+  $("sName").textContent=c.name;logoEl(c,$("sLogo"));$("sNum").textContent=c.num;
+  $("sNote").hidden=!c.note;$("sNote").textContent=c.note||"";
+  $("edit").hidden=$("del").hidden=!!c.ex;$("confirmDel").hidden=true;$("scanActions").hidden=false;
+  const bar=$("bar"),qr=$("qr");qr.textContent="";
+  let type=c.type==="auto"?detect(c.num):c.type;
+  if(type==="QR"||!window.JsBarcode){bar.style.display="none";qr.hidden=false;
+    if(window.QRCode)new QRCode(qr,{text:c.num,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});}
+  else{qr.hidden=true;bar.style.display="";
+    try{JsBarcode(bar,c.num,{format:type,displayValue:false,margin:0,height:110,width:2.6})}
+    catch(e){JsBarcode(bar,c.num,{format:"CODE128",displayValue:false,margin:0,height:110,width:2.2})}}
+  s.hidden=false;
+  try{wake=await navigator.wakeLock?.request("screen")}catch(e){}
+  if(!c.ex){c.used=Date.now();persist(c,true)}
+}
+function closeScan(){$("scan").hidden=true;current=null;try{wake?.release()}catch(e){}wake=null;render()}
+
+function openForm(c){
+  editing=c||null;$("formTitle").textContent=c?"Edytuj kartę":"Nowa karta";
+  formLogo=c?.logo||null;$("fName").value=c?.name||"";$("fSite").value=c?.site||"";siteTouched=!!c?.site;$("fNum").value=c?.num||"";$("fType").value=c?.type||"auto";$("fNote").value=c?.note||"";
+  pickColor=c?c.color:(cards.length%COLORS.length);drawSwatches();prevLogo();$("fErr").hidden=true;$("formSheet").hidden=false;
+  setTimeout(()=>$("fName").focus(),50);
+}
+function drawSwatches(){const w=$("swatches");w.textContent="";
+  COLORS.forEach(([bg],i)=>{const b=document.createElement("button");b.type="button";b.className="sw";
+    b.style.setProperty("--c",bg);b.setAttribute("aria-label","Kolor "+(i+1));b.setAttribute("aria-pressed",i===pickColor);
+    b.onclick=()=>{pickColor=i;drawSwatches()};w.append(b)})}
+
+function validate(num,type){
+  if(type==="EAN13"&&!/^\d{12,13}$/.test(num))return"EAN-13 ma 13 cyfr. Sprawdź numer albo wybierz Code 128.";
+  if(type==="EAN8"&&!/^\d{7,8}$/.test(num))return"EAN-8 ma 8 cyfr. Sprawdź numer albo wybierz Code 128.";
+  if(type==="CODE39"&&!/^[0-9A-Z\-. $\/+%]+$/i.test(num))return"Code 39 przyjmuje tylko cyfry, litery i - . $ / + %.";
+  return"";}
+
+$("form").addEventListener("submit",e=>{e.preventDefault();
+  const name=$("fName").value.trim(),num=$("fNum").value.replace(/\s+/g,""),type=$("fType").value,note=$("fNote").value.trim(),site=cleanSite($("fSite").value);
+  const err=!name?"Wpisz nazwę sklepu.":!num?"Wpisz numer karty.":validate(num,type);
+  if(err){$("fErr").textContent=err;$("fErr").hidden=false;return}
+  const c=editing?Object.assign({},editing,{name,num,type,note,site,logo:formLogo,color:pickColor})
+                 :{id:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,num,type,note,site,logo:formLogo,color:pickColor,added:Date.now(),used:0};
+  cards=cards.filter(x=>x.id!==c.id).concat(c);persist(c);
+  $("formSheet").hidden=true;
+  if(editing&&current){closeScan();openScan(c)}else render();
+});
+$("fName").addEventListener("input",()=>{if(!siteTouched)$("fSite").value=guessSite($("fName").value)});
+$("fSite").addEventListener("input",()=>{siteTouched=$("fSite").value.trim()!==""});
+function prevLogo(){logoEl({name:$("fName").value||"?",site:$("fSite").value,logo:formLogo},$("fLogoPrev"));$("fLogoDel").hidden=!formLogo}
+let prevT;function prevSoon(){clearTimeout(prevT);prevT=setTimeout(prevLogo,500)}
+$("fName").addEventListener("input",prevSoon);$("fSite").addEventListener("input",prevSoon);
+$("fLogoDel").onclick=()=>{formLogo=null;prevLogo()};
+$("fLogo").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const url=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+    const S=192,cv=document.createElement("canvas");cv.width=cv.height=S;const x=cv.getContext("2d");
+    x.fillStyle="#fff";x.fillRect(0,0,S,S);
+    const k=Math.min(S/img.naturalWidth,S/img.naturalHeight),w=img.naturalWidth*k,h=img.naturalHeight*k;
+    x.imageSmoothingQuality="high";x.drawImage(img,(S-w)/2,(S-h)/2,w,h);URL.revokeObjectURL(url);
+    formLogo=cv.toDataURL("image/jpeg",.9);prevLogo()}
+  catch(err){$("fErr").textContent="Nie udało się wczytać tego obrazka. Wybierz zdjęcie lub zrzut ekranu (JPG albo PNG).";$("fErr").hidden=false}};
+$("cancel").onclick=()=>$("formSheet").hidden=true;
+$("formSheet").addEventListener("click",e=>{if(e.target.id==="formSheet")$("formSheet").hidden=true});
+$("addBtn").onclick=()=>openForm();
+$("q").oninput=render;
+$("close").onclick=closeScan;
+$("edit").onclick=()=>openForm(current);
+$("del").onclick=()=>{$("scanActions").hidden=true;$("confirmDel").hidden=false};
+$("noDel").onclick=()=>{$("scanActions").hidden=false;$("confirmDel").hidden=true};
+$("yesDel").onclick=()=>{const id=current.id;cards=cards.filter(x=>x.id!==id);remove(id);closeScan()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("formSheet").hidden)$("formSheet").hidden=true;else if(!$("scan").hidden)closeScan()}});
+
+function persist(c,quiet){lsSet();if(!quiet)render()}
+function remove(id){lsSet()}
+$("exp").onclick=()=>{
+  const blob=new Blob([JSON.stringify({app:"portfel-kart",version:1,saved:new Date().toISOString(),cards},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="karty-kopia-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  msg("Zapisano plik z "+cards.length+" kartami. Znajdziesz go w Pobranych.")};
+$("imp").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  try{const d=JSON.parse(await f.text());const list=Array.isArray(d)?d:d.cards;
+    if(!Array.isArray(list))throw 0;let n=0;
+    list.forEach(c=>{if(c&&c.id&&c.name&&c.num){cards=cards.filter(x=>x.id!==c.id).concat(c);n++}});
+    lsSet();render();msg("Wczytano "+n+" kart.")}
+  catch(err){msg("Ten plik to nie jest kopia portfela. Wybierz plik karty-kopia-….json.")}
+  e.target.value=""};
+function msg(t){$("bMsg").textContent=t;$("bMsg").hidden=false}
+cards=lsGet();render();
+$("sync").textContent="";
+try{navigator.storage?.persist?.()}catch(e){}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+
+</body>
+</html>
