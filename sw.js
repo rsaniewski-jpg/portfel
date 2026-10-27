@@ -1,5 +1,5 @@
 // Keeps the app working offline (e.g. in a shop basement without signal).
-const CACHE = "portfel-v2";
+const CACHE = "portfel-v3";
 const CORE = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"];

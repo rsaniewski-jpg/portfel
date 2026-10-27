@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1f5eff">
+<meta name="theme-color" content="#1f5eff" id="themeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Karty">
@@ -97,9 +97,12 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
 .btn.danger.solid{background:var(--danger);color:#fff}
 .err{color:var(--danger);font-size:.85rem;margin:0}
 /* scan view: always white so scanners read it in either theme */
-.scan{position:fixed;inset:0;z-index:30;background:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+.scan{position:fixed;inset:0;z-index:30;background:#fff;color-scheme:light;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
   padding-block:calc(env(safe-area-inset-top,0px) + 20px) calc(env(safe-area-inset-bottom,0px) + 20px);
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));color:var(--fg)}
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));color:#111}
+.scan::before{content:"";position:absolute;inset:0 0 auto;height:calc(env(safe-area-inset-top,0px) + 14px);background:var(--c)}
+.scan .logo{border:1px solid #e3e6ea}
+.scan .code{padding:12px 4px}
 .scan h2{font-family:var(--display);font-weight:800;font-size:1.8rem;margin:0;text-align:center;text-wrap:balance}
 .code{background:#fff;color:#000;border-radius:16px;padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:10px}
 .code svg{width:100%;height:auto;max-height:180px}
@@ -139,7 +142,7 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
       <label class="btn" for="imp" style="flex-direction:row;justify-content:center;font-size:1rem">Wczytaj kopię<input id="imp" type="file" accept=".json,application/json" hidden></label>
     </div>
     <p class="msg" id="bMsg" hidden></p>
-    <p style="font-size:.75rem">Wersja 11</p>
+    <p style="font-size:.75rem">Wersja 12</p>
   </details>
 </div>
 
@@ -335,6 +338,7 @@ function render(){
 }
 
 async function openScan(c){
+  try{$("themeColor").content="#ffffff"}catch(e){}
   current=c;const [bg,fg]=COLORS[c.color%COLORS.length];
   const s=$("scan");s.style.setProperty("--c",bg);s.style.setProperty("--fg",fg);
   $("sName").textContent=c.name;logoEl(c,$("sLogo"));$("sNum").textContent=c.num;
@@ -351,7 +355,7 @@ async function openScan(c){
   try{wake=await navigator.wakeLock?.request("screen")}catch(e){}
   if(!c.ex){c.used=Date.now();persist(c,true)}
 }
-function closeScan(){$("scan").hidden=true;current=null;try{wake?.release()}catch(e){}wake=null;render()}
+function closeScan(){try{$("themeColor").content="#1f5eff"}catch(e){}$("scan").hidden=true;current=null;try{wake?.release()}catch(e){}wake=null;render()}
 
 function openForm(c){
   editing=c||null;$("formTitle").textContent=c?"Edytuj kartę":"Nowa karta";
