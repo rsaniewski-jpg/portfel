@@ -109,12 +109,23 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
 .code #qr img,.code #qr canvas{width:220px!important;height:220px!important}
 .code .num{font-family:var(--mono);font-size:1.15rem;letter-spacing:.08em;color:#000;text-align:center;overflow-wrap:anywhere}
 .scan .note{max-width:440px;text-align:center;opacity:.9;margin:0}
-.scan .row{width:100%;max-width:440px}
 .scan .btn{border-color:currentColor;color:inherit}
 .backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-top:8px}
 .backup summary{cursor:pointer;font-weight:600}
 .backup p{color:var(--muted);font-size:.9rem;margin:10px 0}
 .backup .msg{color:var(--ink)}
+.card{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.card.pressing{transform:scale(.95)}
+.menu{gap:12px}
+.mhead{display:flex;align-items:center;gap:12px;min-width:0}
+.mhead h2{font-size:1.3rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.mlist{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#mConfirm{border:0;gap:10px}
+.mitem{text-align:left;padding:15px 16px;border:0;background:var(--bg);font-weight:600;cursor:pointer}
+.mitem.danger{color:var(--danger)}
+.mq{margin:0;color:var(--muted)}
+.close-hint{margin:0;color:#6b7280;font-size:.9rem}
+.scan{cursor:pointer}
 @media (prefers-reduced-motion:reduce){.card{transition:none}}
 </style>
 </head>
@@ -142,7 +153,7 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
       <label class="btn" for="imp" style="flex-direction:row;justify-content:center;font-size:1rem">Wczytaj kopię<input id="imp" type="file" accept=".json,application/json" hidden></label>
     </div>
     <p class="msg" id="bMsg" hidden></p>
-    <p style="font-size:.75rem">Wersja 12</p>
+    <p style="font-size:.75rem">Wersja 13</p>
   </details>
 </div>
 
@@ -193,6 +204,24 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
   </form>
 </div>
 
+<div class="sheet" id="menuSheet" hidden>
+  <div class="panel menu" role="dialog" aria-labelledby="mName">
+    <div class="mhead"><div class="logo" id="mLogo"></div><h2 id="mName"></h2></div>
+    <div id="mActions" class="mlist">
+      <button type="button" class="mitem" id="mOpen">Pokaż kod</button>
+      <button type="button" class="mitem" id="mEdit">Edytuj</button>
+      <button type="button" class="mitem" id="mMove"></button>
+      <button type="button" class="mitem danger" id="mDel">Usuń</button>
+    </div>
+    <div id="mConfirm" class="mlist" hidden>
+      <p class="mq">Usunąć tę kartę? Tego nie da się cofnąć.</p>
+      <button type="button" class="btn danger solid" id="mYes">Usuń na zawsze</button>
+      <button type="button" class="btn" id="mNo">Zostaw</button>
+    </div>
+    <button type="button" class="btn" id="mCancel">Anuluj</button>
+  </div>
+</div>
+
 <div class="scan" id="scan" hidden>
   <div class="logo" id="sLogo"></div>
   <h2 id="sName"></h2>
@@ -202,15 +231,7 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
     <div class="num" id="sNum"></div>
   </div>
   <p class="note" id="sNote" hidden></p>
-  <div class="row" id="scanActions">
-    <button class="btn" type="button" id="close">Zamknij</button>
-    <button class="btn" type="button" id="edit">Edytuj</button>
-    <button class="btn" type="button" id="del">Usuń</button>
-  </div>
-  <div class="row" id="confirmDel" hidden>
-    <button class="btn" type="button" id="noDel">Zostaw</button>
-    <button class="btn danger solid" type="button" id="yesDel">Usuń na zawsze</button>
-  </div>
+  <p class="close-hint">Dotknij ekranu, aby zamknąć</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
@@ -315,7 +336,14 @@ function tile(c){const [bg,fg]=COLORS[c.color%COLORS.length];
   const no=document.createElement("div");no.className="no";no.textContent=c.num.length>16?c.num.slice(0,14)+"…":c.num;
   const top=document.createElement("div");top.className="top";top.append(logoEl(c),nm);b.append(top,no);
   if(c.ex){const t=document.createElement("span");t.className="tag";t.textContent="przykład";b.append(t)}
-  b.onclick=()=>openScan(c);return b;}
+  let t=null,long=false,sx=0,sy=0;
+  const cancel=()=>{clearTimeout(t);t=null;b.classList.remove("pressing")};
+  b.addEventListener("pointerdown",e=>{if(c.ex)return;long=false;sx=e.clientX;sy=e.clientY;b.classList.add("pressing");
+    t=setTimeout(()=>{long=true;cancel();try{navigator.vibrate?.(15)}catch(x){}openMenu(c)},500)});
+  b.addEventListener("pointermove",e=>{if(t&&Math.hypot(e.clientX-sx,e.clientY-sy)>10)cancel()});
+  ["pointerup","pointerleave","pointercancel"].forEach(ev=>b.addEventListener(ev,cancel));
+  b.addEventListener("contextmenu",e=>{e.preventDefault();if(!c.ex&&!long){long=true;cancel();openMenu(c)}});
+  b.onclick=e=>{if(long){e.preventDefault();long=false;return}openScan(c)};return b;}
 
 function render(){
   drawTabs();
@@ -343,7 +371,6 @@ async function openScan(c){
   const s=$("scan");s.style.setProperty("--c",bg);s.style.setProperty("--fg",fg);
   $("sName").textContent=c.name;logoEl(c,$("sLogo"));$("sNum").textContent=c.num;
   $("sNote").hidden=!c.note;$("sNote").textContent=c.note||"";
-  $("edit").hidden=$("del").hidden=!!c.ex;$("confirmDel").hidden=true;$("scanActions").hidden=false;
   const bar=$("bar"),qr=$("qr");qr.textContent="";
   let type=c.type==="auto"?detect(c.num):c.type;
   if(type==="QR"||!window.JsBarcode){bar.style.display="none";qr.hidden=false;
@@ -351,7 +378,7 @@ async function openScan(c){
   else{qr.hidden=true;bar.style.display="";
     try{JsBarcode(bar,c.num,{format:type,displayValue:false,margin:0,height:110,width:2.6})}
     catch(e){JsBarcode(bar,c.num,{format:"CODE128",displayValue:false,margin:0,height:110,width:2.2})}}
-  s.hidden=false;
+  s.hidden=false;try{if(!history.state?.scan)history.pushState({scan:1},"")}catch(e){}
   try{wake=await navigator.wakeLock?.request("screen")}catch(e){}
   if(!c.ex){c.used=Date.now();persist(c,true)}
 }
@@ -382,7 +409,7 @@ $("form").addEventListener("submit",e=>{e.preventDefault();
                  :{id:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,num,type,note,site,logo:formLogo,group:formGroup,color:pickColor,added:Date.now(),used:0};
   cards=cards.filter(x=>x.id!==c.id).concat(c);persist(c);
   $("formSheet").hidden=true;tab=formGroup;try{localStorage.setItem("portfel-tab",tab)}catch(e){}
-  if(editing&&current){closeScan();openScan(c)}else render();
+  render();
 });
 $("fName").addEventListener("input",()=>{if(!siteTouched)$("fSite").value=guessSite($("fName").value)});
 $("fSite").addEventListener("input",()=>{siteTouched=$("fSite").value.trim()!==""});
@@ -404,12 +431,23 @@ $("cancel").onclick=()=>$("formSheet").hidden=true;
 $("formSheet").addEventListener("click",e=>{if(e.target.id==="formSheet")$("formSheet").hidden=true});
 $("addBtn").onclick=()=>openForm();
 $("q").oninput=render;
-$("close").onclick=closeScan;
-$("edit").onclick=()=>openForm(current);
-$("del").onclick=()=>{$("scanActions").hidden=true;$("confirmDel").hidden=false};
-$("noDel").onclick=()=>{$("scanActions").hidden=false;$("confirmDel").hidden=true};
-$("yesDel").onclick=()=>{const id=current.id;cards=cards.filter(x=>x.id!==id);remove(id);closeScan()};
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("formSheet").hidden)$("formSheet").hidden=true;else if(!$("scan").hidden)closeScan()}});
+$("scan").onclick=()=>history.state?.scan?history.back():closeScan();
+let menuCard=null;
+function openMenu(c){menuCard=c;$("mName").textContent=c.name;logoEl(c,$("mLogo"));
+  $("mMove").textContent=grp(c)==="extra"?"Przenieś do Lojalnościowych":"Przenieś do Dodatkowych kart";
+  $("mActions").hidden=false;$("mConfirm").hidden=true;$("mCancel").hidden=false;$("menuSheet").hidden=false}
+function closeMenu(){$("menuSheet").hidden=true;menuCard=null}
+$("mCancel").onclick=closeMenu;
+$("menuSheet").addEventListener("click",e=>{if(e.target.id==="menuSheet")closeMenu()});
+$("mOpen").onclick=()=>{const c=menuCard;closeMenu();openScan(c)};
+$("mEdit").onclick=()=>{const c=menuCard;closeMenu();openForm(c)};
+$("mMove").onclick=()=>{const c=Object.assign({},menuCard,{group:grp(menuCard)==="extra"?"main":"extra"});
+  cards=cards.map(x=>x.id===c.id?c:x);closeMenu();persist(c)};
+$("mDel").onclick=()=>{$("mActions").hidden=true;$("mCancel").hidden=true;$("mConfirm").hidden=false};
+$("mNo").onclick=()=>{$("mActions").hidden=false;$("mCancel").hidden=false;$("mConfirm").hidden=true};
+$("mYes").onclick=()=>{const id=menuCard.id;cards=cards.filter(x=>x.id!==id);remove(id);closeMenu();render()};
+window.addEventListener("popstate",()=>{if(!$("scan").hidden)closeScan()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("formSheet").hidden)$("formSheet").hidden=true;else if(!$("menuSheet").hidden)closeMenu();else if(!$("scan").hidden)$("scan").click()}});
 
 function persist(c,quiet){lsSet();if(!quiet)render()}
 function remove(id){lsSet()}
