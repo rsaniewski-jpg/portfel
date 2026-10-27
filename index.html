@@ -38,6 +38,14 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .count{color:var(--muted);font-size:.9rem;margin:4px 0 0}
 .sync{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
 input,select,button{font:inherit;color:inherit}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.tab{flex:1;border:0;background:transparent;padding:10px 8px;border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tab .n{font-size:.75rem;font-weight:600;opacity:.8;font-variant-numeric:tabular-nums}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
 .search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -117,6 +125,10 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
     </div>
     <span class="sync" id="sync"></span>
   </header>
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" type="button" role="tab" data-g="main" id="tabMain">Lojalnościowe <span class="n" id="nMain"></span></button>
+    <button class="tab" type="button" role="tab" data-g="extra" id="tabExtra">Dodatkowe karty <span class="n" id="nExtra"></span></button>
+  </div>
   <input class="search" id="q" type="search" placeholder="Szukaj sklepu…" aria-label="Szukaj karty" hidden>
   <div id="list"></div>
   <details class="backup">
@@ -127,7 +139,7 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
       <label class="btn" for="imp" style="flex-direction:row;justify-content:center;font-size:1rem">Wczytaj kopię<input id="imp" type="file" accept=".json,application/json" hidden></label>
     </div>
     <p class="msg" id="bMsg" hidden></p>
-    <p style="font-size:.75rem">Wersja 10</p>
+    <p style="font-size:.75rem">Wersja 11</p>
   </details>
 </div>
 
@@ -160,6 +172,11 @@ label span.hint{font-weight:400;color:var(--muted);font-size:.8rem}
         <option value="QR">Kod QR</option>
       </select>
     </label>
+    <div><div style="font-size:.85rem;font-weight:600;margin-bottom:8px">Zakładka</div>
+      <div class="seg" id="fGroup">
+        <button type="button" data-g="main">Lojalnościowe</button>
+        <button type="button" data-g="extra">Dodatkowe karty</button>
+      </div></div>
     <label for="fNote">Notatka <span class="hint">Opcjonalnie: PIN, e-mail konta, punkty</span>
       <input class="field" id="fNote" maxlength="80">
     </label>
@@ -272,7 +289,13 @@ function findLogo(site,name){
     for(const u of srcs){const r=await loadImg(u);if(!r)continue;if(!best||r.w>best.w)best=r;if(r.w>=120)break}
     if(best)return save({url:best.url,wide:false});
     delete logoCache[site];return null})()}
-let siteTouched=false,formLogo=null;
+let siteTouched=false,formLogo=null,formGroup="main";
+let tab="main";try{tab=localStorage.getItem("portfel-tab")==="extra"?"extra":"main"}catch(e){}
+const grp=c=>c.group==="extra"?"extra":"main";
+function drawTabs(){document.querySelectorAll("#tabs .tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.g===tab));
+  const nm=cards.filter(c=>grp(c)==="main").length,ne=cards.length-nm;
+  $("nMain").textContent=nm||"";$("nExtra").textContent=ne||""}
+function drawGroup(){document.querySelectorAll("#fGroup button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===formGroup))}
 let cards=[],store=null,editing=null,current=null,pickColor=0,wake=null;
 const $=id=>document.getElementById(id);
 
@@ -292,15 +315,21 @@ function tile(c){const [bg,fg]=COLORS[c.color%COLORS.length];
   b.onclick=()=>openScan(c);return b;}
 
 function render(){
+  drawTabs();
   const q=$("q").value.trim().toLowerCase(),L=$("list");L.textContent="";
-  $("q").hidden=cards.length<5;
+  $("q").hidden=cards.filter(c=>grp(c)===tab).length<5;
   $("count").textContent=cards.length?`${cards.length} ${cards.length===1?"karta":(cards.length%10>=2&&cards.length%10<=4&&(cards.length%100<10||cards.length%100>=20))?"karty":"kart"}`:"Jeszcze nic tu nie ma";
   if(!cards.length){
     const e=document.createElement("div");e.className="empty";
     e.innerHTML='<h2>Dodaj pierwszą kartę</h2><p>Kliknij „Dodaj kartę” i przepisz numer spod kodu kreskowego. Przy kasie otwierasz kartę, a kasjer skanuje kod z ekranu.</p><p>Tak to będzie wyglądać (dotknij, żeby zobaczyć):</p>';
     const g=document.createElement("div");g.className="grid";EXAMPLES.forEach(c=>g.append(tile(c)));e.append(g);L.append(e);return;}
+  const shown=cards.filter(c=>grp(c)===tab);
+  if(!shown.length){const e=document.createElement("div");e.className="empty";
+    e.innerHTML=tab==="extra"?'<h2>Brak dodatkowych kart</h2><p>Tu trzymaj karty inne niż sklepowe, np. siłownia, biblioteka, karta parkingowa albo karty bliskich. Kliknij „Dodaj kartę”.</p>'
+      :'<h2>Brak kart lojalnościowych</h2><p>Kliknij „Dodaj kartę”, żeby dodać kartę sklepu.</p>';
+    L.append(e);return}
   const g=document.createElement("div");g.className="grid";
-  cards.filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>(b.used||0)-(a.used||0)||a.name.localeCompare(b.name,"pl"))
+  shown.filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>(b.used||0)-(a.used||0)||a.name.localeCompare(b.name,"pl"))
     .forEach(c=>g.append(tile(c)));
   L.append(g);
 }
@@ -326,7 +355,7 @@ function closeScan(){$("scan").hidden=true;current=null;try{wake?.release()}catc
 
 function openForm(c){
   editing=c||null;$("formTitle").textContent=c?"Edytuj kartę":"Nowa karta";
-  formLogo=c?.logo||null;$("fName").value=c?.name||"";$("fSite").value=c?.site||"";siteTouched=!!c?.site;$("fNum").value=c?.num||"";$("fType").value=c?.type||"auto";$("fNote").value=c?.note||"";
+  formLogo=c?.logo||null;formGroup=c?grp(c):tab;drawGroup();$("fName").value=c?.name||"";$("fSite").value=c?.site||"";siteTouched=!!c?.site;$("fNum").value=c?.num||"";$("fType").value=c?.type||"auto";$("fNote").value=c?.note||"";
   pickColor=c?c.color:(cards.length%COLORS.length);drawSwatches();prevLogo();$("fErr").hidden=true;$("formSheet").hidden=false;
   setTimeout(()=>$("fName").focus(),50);
 }
@@ -345,10 +374,10 @@ $("form").addEventListener("submit",e=>{e.preventDefault();
   const name=$("fName").value.trim(),num=$("fNum").value.replace(/\s+/g,""),type=$("fType").value,note=$("fNote").value.trim(),site=cleanSite($("fSite").value);
   const err=!name?"Wpisz nazwę sklepu.":!num?"Wpisz numer karty.":validate(num,type);
   if(err){$("fErr").textContent=err;$("fErr").hidden=false;return}
-  const c=editing?Object.assign({},editing,{name,num,type,note,site,logo:formLogo,color:pickColor})
-                 :{id:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,num,type,note,site,logo:formLogo,color:pickColor,added:Date.now(),used:0};
+  const c=editing?Object.assign({},editing,{name,num,type,note,site,logo:formLogo,group:formGroup,color:pickColor})
+                 :{id:"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,num,type,note,site,logo:formLogo,group:formGroup,color:pickColor,added:Date.now(),used:0};
   cards=cards.filter(x=>x.id!==c.id).concat(c);persist(c);
-  $("formSheet").hidden=true;
+  $("formSheet").hidden=true;tab=formGroup;try{localStorage.setItem("portfel-tab",tab)}catch(e){}
   if(editing&&current){closeScan();openScan(c)}else render();
 });
 $("fName").addEventListener("input",()=>{if(!siteTouched)$("fSite").value=guessSite($("fName").value)});
@@ -365,6 +394,8 @@ $("fLogo").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)
     x.imageSmoothingQuality="high";x.drawImage(img,(S-w)/2,(S-h)/2,w,h);URL.revokeObjectURL(url);
     formLogo=cv.toDataURL("image/jpeg",.9);prevLogo()}
   catch(err){$("fErr").textContent="Nie udało się wczytać tego obrazka. Wybierz zdjęcie lub zrzut ekranu (JPG albo PNG).";$("fErr").hidden=false}};
+document.querySelectorAll("#tabs .tab").forEach(b=>b.onclick=()=>{tab=b.dataset.g;try{localStorage.setItem("portfel-tab",tab)}catch(e){}render()});
+document.querySelectorAll("#fGroup button").forEach(b=>b.onclick=()=>{formGroup=b.dataset.g;drawGroup()});
 $("cancel").onclick=()=>$("formSheet").hidden=true;
 $("formSheet").addEventListener("click",e=>{if(e.target.id==="formSheet")$("formSheet").hidden=true});
 $("addBtn").onclick=()=>openForm();
